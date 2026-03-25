@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  firstName String
+  lastName  String
+  email     String   @unique
+  password  String
+  role      String   @default("TEACHER")
+  avatar    String?  @db.Text
+  
+  resources        Resource[]
+  tests            CBTTest[]
+  classSubjects    ClassSubject[]
+  assignments      Assignment[]
+  studentProfile   Student?
+  
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  announcements    Announcement[]
+}
+
+model Subject {
+  id        String   @id @default(uuid())
+  name      String
+  classes   ClassSubject[]
+}
+
+model Class {
+  id          String   @id @default(uuid())
+  name        String
+  subjects    ClassSubject[]
+  students    Student[]
+  attendances Attendance[]
+}
+
+model ClassSubject {
+  id        String  @id @default(uuid())
+  classId   String
+  subjectId String
+  teacherId String
+  class     Class   @relation(fields: [classId], references: [id])
+  subject   Subject @relation(fields: [subjectId], references: [id])
+  teacher   User    @relation(fields: [teacherId], references: [id])
+  
+  resources   Resource[]
+  tests       CBTTest[]
+  results     ResultBatch[]
+  assignments Assignment[]
+  announcements Announcement[]
+}
+
+model Resource {
+  id          String   @id @default(uuid())
+  title       String
+  type        String
+  description String?
+  accessLevel String
+  fileUrl     String
+  downloads   Int      @default(0)
+  createdAt   DateTime @default(now())
+  
+  classSubjectId String
+  classSubject   ClassSubject @relation(fields: [classSubjectId], references: [id])
+  teacherId      String
+  teacher        User         @relation(fields: [teacherId], references: [id])
+}
+
+model CBTTest {
+  id             String   @id @default(uuid())
+  title          String
+  durationMins   Int
+  instructions   String?
+  scheduledDate  DateTime
+  shuffleAnswers Boolean  @default(false)
+  showResults    Boolean  @default(true)
+  allowRetakes   Boolean  @default(false)
+  status         String
+  
+  classSubjectId String
+  classSubject   ClassSubject @relation(fields: [classSubjectId], references: [id])
+  teacherId      String
+  teacher        User       @relation(fields: [teacherId], references: [id])
+  
+  questions      CBTQuestion[]
+  attempts       CbtAttempt[]
+}
+
+model CBTQuestion {
+  id        String   @id @default(uuid())
+  testId    String
+  test      CBTTest  @relation(fields: [testId], references: [id])
+  question  String
+  points    Int      @default(1)
+  options   Json
+}
+
+model ResultBatch {
+  id             String   @id @default(uuid())
+  classSubjectId String
+  classSubject   ClassSubject @relation(fields: [classSubjectId], references: [id])
+  status         String
+  uploadDate     DateTime @default(now())
+  
+  records        StudentResult[]
+}
+
+model Student {
+  id        String   @id @default(uuid())
+  firstName String
+  lastName  String
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id])
+  
+  userId    String?  @unique
+  user      User?    @relation(fields: [userId], references: [id])
+  
+  grades      StudentResult[]
+  attendances Attendance[]
+  submissions AssignmentSubmission[]
+  cbtAttempts CbtAttempt[]
+}
+
+model StudentResult {
+  id            String      @id @default(uuid())
+  batchId       String
+  batch         ResultBatch @relation(fields: [batchId], references: [id])
+  studentId     String
+  student       Student     @relation(fields: [studentId], references: [id])
+  score         Float
+}
+
+model Attendance {
+  id        String   @id @default(uuid())
+  date      DateTime
+  status    String   // "PRESENT", "ABSENT", "LATE"
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id])
+}
+
+model Assignment {
+  id             String       @id @default(uuid())
+  title          String
+  description    String?
+  dueDate        DateTime
+  classSubjectId String
+  classSubject   ClassSubject @relation(fields: [classSubjectId], references: [id])
+  teacherId      String
+  teacher        User         @relation(fields: [teacherId], references: [id])
+  
+  submissions    AssignmentSubmission[]
+}
+
+model AssignmentSubmission {
+  id           String     @id @default(uuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+  fileUrl      String?    @db.Text
+  content      String?    @db.Text
+  grade        Float?
+  feedback     String?    @db.Text
+  submittedAt  DateTime   @default(now())
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId String
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  content    String   @db.Text
+  createdAt  DateTime @default(now())
+  isRead     Boolean  @default(false)
+}
+model Announcement {
+  id             String       @id @default(uuid())
+  title          String
+  content        String       @db.Text
+  createdAt      DateTime     @default(now())
+  
+  classSubjectId String?
+  classSubject   ClassSubject? @relation(fields: [classSubjectId], references: [id])
+  teacherId      String
+  teacher        User         @relation(fields: [teacherId], references: [id])
+}
+
+model CbtAttempt {
+  id          String   @id @default(uuid())
+  testId      String
+  test        CBTTest  @relation(fields: [testId], references: [id])
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id])
+  startTime   DateTime @default(now())
+  endTime     DateTime?
+  answers     Json?    // Array of { questionId: string, selectedOption: string }
+  score       Float?
+  feedback    String?  @db.Text
+  status      String   @default("IN_PROGRESS") // "IN_PROGRESS", "SUBMITTED", "GRADED"
+}
