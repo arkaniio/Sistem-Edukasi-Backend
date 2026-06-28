@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String  @id @default(uuid())
+  firstName String
+  lastName  String
+  email     String  @unique
+  password  String
+  role      String  @default("TEACHER")
+  avatar    String? @db.Text
+
+  resources         Resource[]
+  classSubjects     ClassSubject[]
+  assignments       Assignment[]
+  studentProfile    Student?
+  announcements     Announcement[]
+  learningMaterials LearningMaterial[]
+}
+
+model Subject {
+  id      String         @id @default(uuid())
+  name    String
+  classes ClassSubject[]
+}
+
+model StudentAnswer {
+  id          String   @id @default(cuid())
+  studentId   String
+  questionId  String
+  optionId    String?
+  essayAnswer String?
+  score       Float?
+  createdAt   DateTime @default(now())
+}
+
+model Option {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+  label      String
+  isCorrect  Boolean
+}
+
+model Question {
+  id          String   @id @default(cuid())
+  quizId      String
+  quiz        Quiz     @relation(fields: [quizId], references: [id])
+  question    String
+  explanation String?
+  order       Int
+  createdAt   DateTime @default(now())
+  options     Option[]
+}
+
+model Quiz {
+  id                 String           @id @default(cuid())
+  learningMaterialId String           @unique
+  learningMaterial   LearningMaterial @relation(fields: [learningMaterialId], references: [id])
+  title              String
+  createdAt          DateTime         @default(now())
+  questions          Question[]
+
+  @@map("quizzes")
+}
+
+model LearningMaterial {
+  id        String @id @default(cuid())
+  title     String
+  fileUrl   String
+  pageCount Int?
+
+  uploadedById String
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  quiz Quiz?
+
+  @@map("learning_materials")
+}
+
+model Class {
+  id          String         @id @default(uuid())
+  name        String
+  subjects    ClassSubject[]
+  students    Student[]
+  attendances Attendance[]
+}
+
+model ClassSubject {
+  id        String  @id @default(uuid())
+  classId   String
+  subjectId String
+  teacherId String
+  class     Class   @relation(fields: [classId], references: [id])
+  subject   Subject @relation(fields: [subjectId], references: [id])
+  teacher   User    @relation(fields: [teacherId], references: [id])
+
+  resources     Resource[]
+  results       ResultBatch[]
+  assignments   Assignment[]
+  announcements Announcement[]
+}
+
+model Resource {
+  id          String   @id @default(uuid())
+  title       String
+  type        String
+  description String?
+  accessLevel String
+  fileUrl     String
+  downloads   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  classSubjectId String
+  classSubject   ClassSubject @relation(fields: [classSubjectId], references: [id])
+  teacherId      String
+  teacher        User         @relation(fields: [teacherId], references: [id])
+}
+
+model ResultBatch {
+  id             String       @id @default(uuid())
+  classSubjectId String
+  classSubject   ClassSubject @relation(fields: [classSubjectId], references: [id])
+  status         String
+  uploadDate     DateTime     @default(now())
+
+  records StudentResult[]
+}
+
+model Student {
+  id        String @id @default(uuid())
+  firstName String
+  lastName  String
+  classId   String
+  class     Class  @relation(fields: [classId], references: [id])
+
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id])
+
+  grades      StudentResult[]
+  attendances Attendance[]
+  submissions AssignmentSubmission[]
+}
+
+model StudentResult {
+  id        String      @id @default(uuid())
+  batchId   String
+  batch     ResultBatch @relation(fields: [batchId], references: [id])
+  studentId String
+  student   Student     @relation(fields: [studentId], references: [id])
+  score     Float
+}
+
+model Attendance {
+  id        String   @id @default(uuid())
+  date      DateTime
+  status    String // "PRESENT", "ABSENT", "LATE"
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id])
+}
+
+model Assignment {
+  id             String       @id @default(uuid())
+  title          String
+  description    String?
+  dueDate        DateTime
+  classSubjectId String
+  classSubject   ClassSubject @relation(fields: [classSubjectId], references: [id])
+  teacherId      String
+  teacher        User         @relation(fields: [teacherId], references: [id])
+
+  submissions AssignmentSubmission[]
+}
+
+model AssignmentSubmission {
+  id           String     @id @default(uuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+  fileUrl      String?    @db.Text
+  content      String?    @db.Text
+  grade        Float?
+  feedback     String?    @db.Text
+  submittedAt  DateTime   @default(now())
+}
+
+model Announcement {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  classSubjectId String?
+  classSubject   ClassSubject? @relation(fields: [classSubjectId], references: [id])
+  teacherId      String
+  teacher        User          @relation(fields: [teacherId], references: [id])
+}
