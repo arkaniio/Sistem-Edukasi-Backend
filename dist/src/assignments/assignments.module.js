@@ -16,7 +16,7 @@ exports.AssignmentsModule = AssignmentsModule;
 exports.AssignmentsModule = AssignmentsModule = __decorate([
     (0, common_1.Module)({
         controllers: [assignments_controller_1.AssignmentsController],
-        providers: [assignments_service_1.AssignmentsService]
+        providers: [assignments_service_1.AssignmentsService],
     })
 ], AssignmentsModule);
 //# sourceMappingURL=assignments.module.js.map

@@ -18,29 +18,71 @@ let ClassesService = class ClassesService {
         this.prisma = prisma;
     }
     async findAll() {
-        const data = await this.prisma.class.findMany({
+        return await this.prisma.class.findMany({
+            include: { _count: { select: { students: true, subjects: true } } },
+            orderBy: { name: 'asc' },
+        });
+    }
+    async findById(id) {
+        const classData = await this.prisma.class.findUnique({
+            where: { id },
             include: {
-                _count: { select: { students: true } },
+                students: {
+                    include: { user: { select: { id: true, email: true } } },
+                },
                 subjects: {
                     include: {
                         subject: true,
-                        teacher: { select: { id: true, firstName: true, email: true } }
-                    }
-                }
+                        teacher: { select: { id: true, firstName: true, lastName: true } },
+                    },
+                },
+                _count: { select: { students: true, subjects: true } },
             },
-            orderBy: { name: 'asc' }
         });
-        console.log('[DEBUG] Classes found:', JSON.stringify(data, null, 2));
-        return data;
+        if (!classData)
+            throw new Error('Class not found');
+        return classData;
     }
-    create(data) {
-        return this.prisma.class.create({ data });
+    async create(data) {
+        return await this.prisma.class.create({
+            data,
+        });
     }
-    update(id, data) {
-        return this.prisma.class.update({ where: { id }, data });
+    async update(id, data) {
+        return await this.prisma.class.update({ where: { id }, data });
     }
-    remove(id) {
-        return this.prisma.class.delete({ where: { id } });
+    async remove(id) {
+        return await this.prisma.class.delete({ where: { id } });
+    }
+    async addSubject(classId, dto) {
+        return await this.prisma.classSubject.create({
+            data: {
+                classId,
+                subjectId: dto.subjectId,
+                teacherId: dto.teacherId,
+            },
+            include: {
+                subject: true,
+                teacher: { select: { id: true, firstName: true, lastName: true } },
+            },
+        });
+    }
+    async removeSubject(classId, classSubjectId) {
+        return await this.prisma.classSubject.delete({
+            where: { id: classSubjectId, classId },
+        });
+    }
+    async addStudent(classId, studentId) {
+        return await this.prisma.student.update({
+            where: { id: studentId },
+            data: { classId },
+        });
+    }
+    async removeStudent(classId, studentId) {
+        return await this.prisma.student.update({
+            where: { id: studentId, classId },
+            data: { classId: null },
+        });
     }
 };
 exports.ClassesService = ClassesService;

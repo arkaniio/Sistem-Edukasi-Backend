@@ -7,8 +7,11 @@ import { UpdateStudentDto } from './dto/update-student.dto';
 export class StudentsService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll() {
+  async findAll(params?: { classId?: string }) {
+    const where: any = {};
+    if (params?.classId) where.classId = params.classId;
     return await this.prisma.student.findMany({
+      where,
       include: { class: true },
       orderBy: { firstName: 'asc' },
     });

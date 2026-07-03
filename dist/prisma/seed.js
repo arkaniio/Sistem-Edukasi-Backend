@@ -35,9 +35,40 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const client_1 = require("@prisma/client");
 const bcrypt = __importStar(require("bcrypt"));
+require("dotenv/config");
 const prisma = new client_1.PrismaClient();
+async function seedAdmin() {
+    const email = process.env.ADMIN_GMAIL?.trim().toLowerCase();
+    const password = process.env.ADMIN_PASSWORD?.trim();
+    const firstName = process.env.ADMIN_FIRST_NAME?.trim() || 'Admin';
+    const lastName = process.env.ADMIN_LAST_NAME?.trim() || 'User';
+    if (!email || !password) {
+        console.warn('ADMIN_GMAIL atau ADMIN_PASSWORD belum di-set — seed admin dilewati');
+        return null;
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    return prisma.user.upsert({
+        where: { email },
+        update: {
+            firstName,
+            lastName,
+            password: hashedPassword,
+            role: 'ADMIN',
+            isActive: true,
+        },
+        create: {
+            email,
+            password: hashedPassword,
+            firstName,
+            lastName,
+            role: 'ADMIN',
+            isActive: true,
+        },
+    });
+}
 async function main() {
-    const password = await bcrypt.hash('app123', 10);
+    await seedAdmin();
+    const teacherPassword = await bcrypt.hash('app123', 10);
     const teacher = await prisma.user.upsert({
         where: { email: 'john@eduportal.com' },
         update: {},
@@ -45,43 +76,71 @@ async function main() {
             firstName: 'John',
             lastName: 'Adebayo',
             email: 'john@eduportal.com',
-            password,
+            password: teacherPassword,
             role: 'TEACHER',
         },
     });
-    const subject1 = await prisma.subject.create({ data: { name: 'Mathematics' } });
-    const subject2 = await prisma.subject.create({ data: { name: 'English Language' } });
-    const class1 = await prisma.class.create({ data: { name: 'Primary 4A' } });
-    const class2 = await prisma.class.create({ data: { name: 'Primary 4B' } });
-    const cs1 = await prisma.classSubject.create({
-        data: { classId: class1.id, subjectId: subject1.id, teacherId: teacher.id }
-    });
-    const cs2 = await prisma.classSubject.create({
-        data: { classId: class2.id, subjectId: subject2.id, teacherId: teacher.id }
-    });
-    await prisma.cBTTest.create({
-        data: {
-            title: 'Mathematics Mid-Term Test',
-            durationMins: 60,
-            instructions: 'Answer all questions.',
-            scheduledDate: new Date('2026-10-15T09:00:00Z'),
-            status: 'ACTIVE',
-            teacherId: teacher.id,
-            classSubjectId: cs1.id,
-            questions: {
-                create: [
-                    { question: 'What is 2+2?', options: ['3', '4', '5'], points: 1 }
-                ]
-            }
-        }
-    });
-    await prisma.student.createMany({
-        data: [
-            { firstName: 'Alice', lastName: 'Smith', classId: class1.id },
-            { firstName: 'Bob', lastName: 'Jones', classId: class1.id },
-            { firstName: 'Charlie', lastName: 'Brown', classId: class2.id },
-        ]
-    });
+    const existingSubjects = await prisma.subject.count();
+    if (existingSubjects === 0) {
+        const subject1 = await prisma.subject.create({
+            data: { name: 'Mathematics' },
+        });
+        const subject2 = await prisma.subject.create({
+            data: { name: 'English Language' },
+        });
+        const class1 = await prisma.class.create({ data: { name: 'Primary 4A' } });
+        const class2 = await prisma.class.create({ data: { name: 'Primary 4B' } });
+        await prisma.classSubject.createMany({
+            data: [
+                { classId: class1.id, subjectId: subject1.id, teacherId: teacher.id },
+                { classId: class2.id, subjectId: subject2.id, teacherId: teacher.id },
+            ],
+        });
+        const qb = await prisma.questionBank.create({
+            data: {
+                title: 'Mathematics Mid-Term',
+                subjectId: subject1.id,
+                createdById: teacher.id,
+            },
+        });
+        const q1 = await prisma.question.create({
+            data: {
+                question: 'What is 2+2?',
+                type: 'MCQ',
+                score: 1,
+                hash: 'seed-hash-2plus2',
+                questionBankId: qb.id,
+                options: {
+                    create: [
+                        { label: 'A', text: '3', isCorrect: false },
+                        { label: 'B', text: '4', isCorrect: true },
+                        { label: 'C', text: '5', isCorrect: false },
+                        { label: 'D', text: '6', isCorrect: false },
+                    ],
+                },
+            },
+        });
+        const quiz = await prisma.quiz.create({
+            data: {
+                title: 'Mathematics Mid-Term Test',
+                description: 'Test your math skills',
+                timeLimit: 60,
+                passingScore: 70,
+                status: 'PUBLISHED',
+                createdById: teacher.id,
+            },
+        });
+        await prisma.quizQuestion.create({
+            data: { quizId: quiz.id, questionId: q1.id },
+        });
+        await prisma.student.createMany({
+            data: [
+                { firstName: 'Alice', lastName: 'Smith', classId: class1.id },
+                { firstName: 'Bob', lastName: 'Jones', classId: class1.id },
+                { firstName: 'Charlie', lastName: 'Brown', classId: class2.id },
+            ],
+        });
+    }
     console.log('Database seeded successfully!');
 }
 main()

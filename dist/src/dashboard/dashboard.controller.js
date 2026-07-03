@@ -16,61 +16,86 @@ exports.DashboardController = void 0;
 const common_1 = require("@nestjs/common");
 const dashboard_service_1 = require("./dashboard.service");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const current_user_decorator_1 = require("../auth/decorators/current-user.decorator");
+const role_guard_1 = require("../auth/guards/role-guard");
+const role_user_decorator_1 = require("../auth/decorators/role-user.decorator");
 let DashboardController = class DashboardController {
     dashboardService;
     constructor(dashboardService) {
         this.dashboardService = dashboardService;
     }
-    async getSummary(req) {
-        return this.dashboardService.getSummary(req.user.userId);
+    async getSummary() {
+        return await this.dashboardService.getSummary();
     }
-    async getClasses(req) {
-        return this.dashboardService.getClasses(req.user.userId);
+    async getClasses() {
+        return await this.dashboardService.getClasses();
     }
-    async getPendingTasks(req) {
-        return this.dashboardService.getPendingTasks(req.user.userId);
+    getPendingTasks() {
+        return this.dashboardService.getPendingTasks();
     }
-    async getStudentSummary(req) {
-        return this.dashboardService.getStudentSummary(req.user.userId);
+    async getAdminStats() {
+        return await this.dashboardService.getAdminStats();
     }
-    async exportData(req) {
-        return this.dashboardService.getExportData(req.user.userId);
+    async getTeacherStats(user, timeframe) {
+        return await this.dashboardService.getTeacherStats(user.userId, timeframe);
+    }
+    async getStudentStats(user) {
+        return await this.dashboardService.getStudentStats(user.userId);
+    }
+    async exportData() {
+        return await this.dashboardService.getExportData();
     }
 };
 exports.DashboardController = DashboardController;
 __decorate([
     (0, common_1.Get)('summary'),
-    __param(0, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], DashboardController.prototype, "getSummary", null);
 __decorate([
     (0, common_1.Get)('classes'),
-    __param(0, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], DashboardController.prototype, "getClasses", null);
 __decorate([
     (0, common_1.Get)('tasks'),
-    __param(0, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
 ], DashboardController.prototype, "getPendingTasks", null);
 __decorate([
-    (0, common_1.Get)('student-summary'),
-    __param(0, (0, common_1.Request)()),
+    (0, common_1.UseGuards)(role_guard_1.RolesGuard),
+    (0, role_user_decorator_1.Roles)('ADMIN'),
+    (0, common_1.Get)('admin'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], DashboardController.prototype, "getAdminStats", null);
+__decorate([
+    (0, common_1.UseGuards)(role_guard_1.RolesGuard),
+    (0, role_user_decorator_1.Roles)('TEACHER'),
+    (0, common_1.Get)('teacher'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('timeframe')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], DashboardController.prototype, "getTeacherStats", null);
+__decorate([
+    (0, common_1.UseGuards)(role_guard_1.RolesGuard),
+    (0, role_user_decorator_1.Roles)('STUDENT'),
+    (0, common_1.Get)('student'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
-], DashboardController.prototype, "getStudentSummary", null);
+], DashboardController.prototype, "getStudentStats", null);
 __decorate([
     (0, common_1.Get)('export'),
-    __param(0, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], DashboardController.prototype, "exportData", null);
 exports.DashboardController = DashboardController = __decorate([

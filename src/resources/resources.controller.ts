@@ -5,6 +5,9 @@ import {
   Body,
   UseGuards,
   UseInterceptors,
+  UploadedFile,
+  Delete,
+  Param,
 } from '@nestjs/common';
 import { ResourcesService } from './resources.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -30,14 +33,17 @@ export class ResourcesController {
   @Post()
   @UseInterceptors(FileInterceptor('file'))
   createResource(
+    @UploadedFile() file: Express.Multer.File,
     @Body() body: CreateResourceDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const dummyFileUrl = 'https://s3.aws.com/eduportal/dummy.pdf';
-    return this.resourcesService.createResource(
-      user.userId,
-      body,
-      dummyFileUrl,
-    );
+    return this.resourcesService.createResource(user.userId, body, file);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles('TEACHER')
+  @Delete(':id')
+  async deleteResource(@Param('id') id: string) {
+    return this.resourcesService.deleteResource(id);
   }
 }

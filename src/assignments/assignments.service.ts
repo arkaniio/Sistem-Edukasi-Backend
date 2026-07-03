@@ -21,7 +21,7 @@ export class AssignmentsService {
 
   async findForStudent(userId: string) {
     const student = await this.prisma.student.findUnique({ where: { userId } });
-    if (!student) return [];
+    if (!student || !student.classId) return [];
 
     const classSubjects = await this.prisma.classSubject.findMany({
       where: { classId: student.classId },
@@ -114,6 +114,9 @@ export class AssignmentsService {
       });
 
       if (!cs) {
+        const teacher = await this.prisma.user.findUnique({
+          where: { id: data.teacherId },
+        });
         let subject = await this.prisma.subject.findFirst();
         if (!subject) {
           subject = await this.prisma.subject.create({

@@ -10,10 +10,13 @@ exports.AuthModule = void 0;
 const common_1 = require("@nestjs/common");
 const jwt_1 = require("@nestjs/jwt");
 const passport_1 = require("@nestjs/passport");
+const platform_express_1 = require("@nestjs/platform-express");
+const multer_1 = require("multer");
 const auth_service_1 = require("./auth.service");
 const auth_controller_1 = require("./auth.controller");
 const jwt_strategy_1 = require("./jwt.strategy");
 const prisma_module_1 = require("../prisma/prisma.module");
+const cloudinary_module_1 = require("../cloudinary/cloudinary.module");
 let AuthModule = class AuthModule {
 };
 exports.AuthModule = AuthModule;
@@ -22,9 +25,11 @@ exports.AuthModule = AuthModule = __decorate([
         imports: [
             prisma_module_1.PrismaModule,
             passport_1.PassportModule,
+            cloudinary_module_1.CloudinaryModule,
+            platform_express_1.MulterModule.register({ storage: (0, multer_1.memoryStorage)() }),
             jwt_1.JwtModule.register({
-                secret: process.env.JWT_SECRET || 'secretKey',
-                signOptions: { expiresIn: '60m' },
+                secret: process.env.JWT_SECRET,
+                signOptions: { expiresIn: '1d' },
             }),
         ],
         providers: [auth_service_1.AuthService, jwt_strategy_1.JwtStrategy],

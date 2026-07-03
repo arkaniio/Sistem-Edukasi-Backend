@@ -16,13 +16,17 @@ exports.StudentsController = void 0;
 const common_1 = require("@nestjs/common");
 const students_service_1 = require("./students.service");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const create_student_dto_1 = require("./dto/create-student.dto");
+const update_student_dto_1 = require("./dto/update-student.dto");
+const role_user_decorator_1 = require("../auth/decorators/role-user.decorator");
+const role_guard_1 = require("../auth/guards/role-guard");
 let StudentsController = class StudentsController {
     studentsService;
     constructor(studentsService) {
         this.studentsService = studentsService;
     }
-    findAll() {
-        return this.studentsService.findAll();
+    findAll(classId) {
+        return this.studentsService.findAll({ classId });
     }
     create(data) {
         return this.studentsService.create(data);
@@ -36,27 +40,36 @@ let StudentsController = class StudentsController {
 };
 exports.StudentsController = StudentsController;
 __decorate([
+    (0, common_1.UseGuards)(role_guard_1.RolesGuard),
+    (0, role_user_decorator_1.Roles)('TEACHER'),
     (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)('classId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], StudentsController.prototype, "findAll", null);
 __decorate([
+    (0, common_1.UseGuards)(role_guard_1.RolesGuard),
+    (0, role_user_decorator_1.Roles)('TEACHER'),
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [create_student_dto_1.CreateStudentDto]),
     __metadata("design:returntype", void 0)
 ], StudentsController.prototype, "create", null);
 __decorate([
+    (0, common_1.UseGuards)(role_guard_1.RolesGuard),
+    (0, role_user_decorator_1.Roles)('TEACHER'),
     (0, common_1.Patch)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [String, update_student_dto_1.UpdateStudentDto]),
     __metadata("design:returntype", void 0)
 ], StudentsController.prototype, "update", null);
 __decorate([
+    (0, common_1.UseGuards)(role_guard_1.RolesGuard),
+    (0, role_user_decorator_1.Roles)('TEACHER'),
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),

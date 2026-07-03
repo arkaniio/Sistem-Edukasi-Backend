@@ -18,7 +18,7 @@ exports.DashboardModule = DashboardModule = __decorate([
     (0, common_1.Module)({
         imports: [prisma_module_1.PrismaModule],
         providers: [dashboard_service_1.DashboardService],
-        controllers: [dashboard_controller_1.DashboardController]
+        controllers: [dashboard_controller_1.DashboardController],
     })
 ], DashboardModule);
 //# sourceMappingURL=dashboard.module.js.map

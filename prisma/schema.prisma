@@ -7,203 +7,419 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  COMPLETED
+  TIMEOUT
+}
+
+enum QuestionType {
+  MCQ
+  ESSAY
+  TRUE_FALSE
+  MULTI_SELECT
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum StudyTargetPeriod {
+  TODAY
+  TOMORROW
+  THIS_WEEK
+  NEXT_WEEK
+  THIS_MONTH
+  NEXT_MONTH
+}
+
+enum ParserStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+}
+
 model User {
-  id        String  @id @default(uuid())
-  firstName String
-  lastName  String
-  email     String  @unique
-  password  String
-  role      String  @default("TEACHER")
-  avatar    String? @db.Text
-
-  resources         Resource[]
-  classSubjects     ClassSubject[]
-  assignments       Assignment[]
+  id                String             @id @default(uuid())
+  email             String             @unique
+  password          String
+  firstName         String
+  lastName          String
+  role              UserRole           @default(TEACHER)
+  avatar            String?
+  phone             String?
+  isActive          Boolean            @default(true)
   studentProfile    Student?
-  announcements     Announcement[]
+  teacherSubjects   ClassSubject[]
   learningMaterials LearningMaterial[]
+  questionBanks     QuestionBank[]
+  quizzes           Quiz[]
+  resources         Resource[]
+  assignments       Assignment[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  quizAttempts      QuizAttempt[]
+  parserJobs        ParserJob[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 }
 
-model Subject {
-  id      String         @id @default(uuid())
-  name    String
-  classes ClassSubject[]
+model Student {
+  id           String                 @id @default(cuid())
+  firstName    String
+  lastName     String
+  nisn         String?
+  classId      String?
+  class        Class?                 @relation(fields: [classId], references: [id])
+  userId       String?                @unique
+  user         User?                  @relation(fields: [userId], references: [id])
+  attendances  Attendance[]
+  submissions  AssignmentSubmission[]
+  quizAttempts QuizAttempt[]
+  studyTargets StudyTarget[]
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
 }
 
-model StudentAnswer {
-  id          String   @id @default(cuid())
-  studentId   String
-  questionId  String
-  optionId    String?
-  essayAnswer String?
-  score       Float?
-  createdAt   DateTime @default(now())
-}
+model ParserJob {
+  id         String       @id @default(cuid())
+  status     ParserStatus @default(PENDING)
+  error      String?
+  result     Json?
+  retryCount Int          @default(0)
 
-model Option {
-  id         String   @id @default(cuid())
-  questionId String
-  question   Question @relation(fields: [questionId], references: [id])
-  label      String
-  isCorrect  Boolean
-}
-
-model Question {
-  id          String   @id @default(cuid())
-  quizId      String
-  quiz        Quiz     @relation(fields: [quizId], references: [id])
-  question    String
-  explanation String?
-  order       Int
-  createdAt   DateTime @default(now())
-  options     Option[]
-}
-
-model Quiz {
-  id                 String           @id @default(cuid())
   learningMaterialId String           @unique
-  learningMaterial   LearningMaterial @relation(fields: [learningMaterialId], references: [id])
-  title              String
-  createdAt          DateTime         @default(now())
-  questions          Question[]
+  learningMaterial   LearningMaterial @relation(fields: [learningMaterialId], references: [id], onDelete: Cascade)
 
-  @@map("quizzes")
-}
+  questionBankId String?
+  questionBank   QuestionBank? @relation(fields: [questionBankId], references: [id], onDelete: SetNull)
 
-model LearningMaterial {
-  id        String @id @default(cuid())
-  title     String
-  fileUrl   String
-  pageCount Int?
-
-  uploadedById String
-  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  quiz Quiz?
+  @@index([status])
+  @@index([learningMaterialId])
+  @@index([questionBankId])
+  @@index([createdById])
+}
 
-  @@map("learning_materials")
+model Subject {
+  id            String         @id @default(uuid())
+  name          String
+  code          String?
+  description   String?
+  classes       ClassSubject[]
+  questionBanks QuestionBank[]
+  quizzes       Quiz[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model Class {
   id          String         @id @default(uuid())
   name        String
+  level       String?
   subjects    ClassSubject[]
   students    Student[]
   attendances Attendance[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 }
 
 model ClassSubject {
-  id        String  @id @default(uuid())
-  classId   String
-  subjectId String
-  teacherId String
-  class     Class   @relation(fields: [classId], references: [id])
-  subject   Subject @relation(fields: [subjectId], references: [id])
-  teacher   User    @relation(fields: [teacherId], references: [id])
+  id                String             @id @default(uuid())
+  classId           String
+  subjectId         String
+  teacherId         String
+  class             Class              @relation(fields: [classId], references: [id])
+  subject           Subject            @relation(fields: [subjectId], references: [id])
+  teacher           User               @relation(fields: [teacherId], references: [id])
+  resources         Resource[]
+  assignments       Assignment[]
+  learningMaterials LearningMaterial[]
+  createdAt         DateTime           @default(now())
 
-  resources     Resource[]
-  results       ResultBatch[]
-  assignments   Assignment[]
-  announcements Announcement[]
+  @@unique([classId, subjectId, teacherId])
 }
 
-model Resource {
-  id          String   @id @default(uuid())
+model LearningMaterial {
+  id             String        @id @default(cuid())
+  title          String
+  description    String?
+  fileUrl        String
+  publicId       String?
+  pageCount      Int?
+  fileSize       Int?
+  mimeType       String?
+  uploadedById   String
+  uploadedBy     User          @relation(fields: [uploadedById], references: [id])
+  classSubjectId String?
+  classSubject   ClassSubject? @relation(fields: [classSubjectId], references: [id])
+  quiz           Quiz?
+  parserJob      ParserJob?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model QuestionBank {
+  id          String      @id @default(cuid())
   title       String
-  type        String
   description String?
-  accessLevel String
-  fileUrl     String
-  downloads   Int      @default(0)
-  createdAt   DateTime @default(now())
-
-  classSubjectId String
-  classSubject   ClassSubject @relation(fields: [classSubjectId], references: [id])
-  teacherId      String
-  teacher        User         @relation(fields: [teacherId], references: [id])
+  difficulty  Difficulty?
+  isDraft     Boolean     @default(true)
+  createdById String
+  createdBy   User        @relation(fields: [createdById], references: [id])
+  subjectId   String?
+  subject     Subject?    @relation(fields: [subjectId], references: [id])
+  questions   Question[]
+  parserJobs  ParserJob[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 }
 
-model ResultBatch {
-  id             String       @id @default(uuid())
-  classSubjectId String
-  classSubject   ClassSubject @relation(fields: [classSubjectId], references: [id])
-  status         String
-  uploadDate     DateTime     @default(now())
+model Question {
+  id             String          @id @default(cuid())
+  question       String
+  type           QuestionType    @default(MCQ)
+  explanation    String?
+  score          Int             @default(1)
+  tags           String[]
+  imageUrl       String?
+  order          Int             @default(0)
+  hash           String
+  questionBankId String
+  questionBank   QuestionBank    @relation(fields: [questionBankId], references: [id])
+  options        Option[]
+  quizQuestions  QuizQuestion[]
+  studentAnswers StudentAnswer[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
-  records StudentResult[]
+  @@unique([hash, questionBankId])
 }
 
-model Student {
-  id        String @id @default(uuid())
-  firstName String
-  lastName  String
-  classId   String
-  class     Class  @relation(fields: [classId], references: [id])
-
-  userId String? @unique
-  user   User?   @relation(fields: [userId], references: [id])
-
-  grades      StudentResult[]
-  attendances Attendance[]
-  submissions AssignmentSubmission[]
+model Option {
+  id             String          @id @default(cuid())
+  label          String
+  text           String
+  isCorrect      Boolean         @default(false)
+  questionId     String
+  question       Question        @relation(fields: [questionId], references: [id])
+  studentAnswers StudentAnswer[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }
 
-model StudentResult {
-  id        String      @id @default(uuid())
-  batchId   String
-  batch     ResultBatch @relation(fields: [batchId], references: [id])
-  studentId String
-  student   Student     @relation(fields: [studentId], references: [id])
-  score     Float
+model Quiz {
+  id                 String            @id @default(cuid())
+  title              String
+  description        String?
+  difficulty         Difficulty        @default(MEDIUM)
+  timeLimit          Int?
+  passingScore       Int               @default(0)
+  status             QuizStatus        @default(DRAFT)
+  shuffleQuestions   Boolean           @default(false)
+  shuffleOptions     Boolean           @default(false)
+  showResults        Boolean           @default(true)
+  maxAttempts        Int               @default(1)
+  publishedAt        DateTime?
+  createdById        String
+  createdBy          User              @relation(fields: [createdById], references: [id])
+  subjectId          String?
+  subject            Subject?          @relation(fields: [subjectId], references: [id])
+  learningMaterialId String?           @unique
+  learningMaterial   LearningMaterial? @relation(fields: [learningMaterialId], references: [id])
+  quizQuestions      QuizQuestion[]
+  quizAttempts       QuizAttempt[]
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+}
+
+model QuizQuestion {
+  id         String   @id @default(cuid())
+  order      Int      @default(0)
+  score      Int      @default(1)
+  quizId     String
+  quiz       Quiz     @relation(fields: [quizId], references: [id])
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([quizId, questionId])
+}
+
+model StudyTarget {
+  id          String            @id @default(cuid())
+  title       String
+  description String?
+  period      StudyTargetPeriod
+  isCompleted Boolean           @default(false)
+  studentId   String
+  student     Student           @relation(fields: [studentId], references: [id])
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model QuizAttempt {
+  id             String          @id @default(cuid())
+  status         AttemptStatus   @default(IN_PROGRESS)
+  score          Float?
+  percentage     Float?
+  totalQuestions Int             @default(0)
+  answeredCount  Int             @default(0)
+  correctCount   Int             @default(0)
+  isPassed       Boolean?
+  attemptNumber  Int             @default(1)
+  startedAt      DateTime        @default(now())
+  completedAt    DateTime?
+  quizId         String
+  quiz           Quiz            @relation(fields: [quizId], references: [id])
+  studentId      String
+  student        Student         @relation(fields: [studentId], references: [id])
+  userId         String
+  user           User            @relation(fields: [userId], references: [id])
+  answers        StudentAnswer[]
+  quizResult     QuizResult?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model StudentAnswer {
+  id          String      @id @default(cuid())
+  essayAnswer String?
+  isCorrect   Boolean?
+  score       Float?
+  attemptId   String
+  attempt     QuizAttempt @relation(fields: [attemptId], references: [id])
+  questionId  String
+  question    Question    @relation(fields: [questionId], references: [id])
+  optionId    String?
+  option      Option?     @relation(fields: [optionId], references: [id])
+  createdAt   DateTime    @default(now())
+
+  @@unique([attemptId, questionId])
+}
+
+model QuizResult {
+  id              String      @id @default(cuid())
+  totalQuestions  Int         @default(0)
+  correctCount    Int         @default(0)
+  wrongCount      Int         @default(0)
+  unansweredCount Int         @default(0)
+  score           Float
+  maxScore        Float       @default(0)
+  percentage      Float
+  grade           String?
+  isPassed        Boolean
+  answerAnalysis  Json?
+  attemptId       String      @unique
+  attempt         QuizAttempt @relation(fields: [attemptId], references: [id])
+  createdAt       DateTime    @default(now())
 }
 
 model Attendance {
-  id        String   @id @default(uuid())
+  id        String           @id @default(cuid())
   date      DateTime
-  status    String // "PRESENT", "ABSENT", "LATE"
+  status    AttendanceStatus @default(PRESENT)
   studentId String
-  student   Student  @relation(fields: [studentId], references: [id])
+  student   Student          @relation(fields: [studentId], references: [id])
   classId   String
-  class     Class    @relation(fields: [classId], references: [id])
+  class     Class            @relation(fields: [classId], references: [id])
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([studentId, classId, date])
 }
 
 model Assignment {
-  id             String       @id @default(uuid())
+  id             String                 @id @default(uuid())
   title          String
   description    String?
   dueDate        DateTime
   classSubjectId String
-  classSubject   ClassSubject @relation(fields: [classSubjectId], references: [id])
+  classSubject   ClassSubject           @relation(fields: [classSubjectId], references: [id])
   teacherId      String
-  teacher        User         @relation(fields: [teacherId], references: [id])
-
-  submissions AssignmentSubmission[]
+  teacher        User                   @relation(fields: [teacherId], references: [id])
+  submissions    AssignmentSubmission[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
 }
 
 model AssignmentSubmission {
   id           String     @id @default(uuid())
+  fileUrl      String?
+  content      String?
+  grade        Float?
+  feedback     String?
   assignmentId String
   assignment   Assignment @relation(fields: [assignmentId], references: [id])
   studentId    String
   student      Student    @relation(fields: [studentId], references: [id])
-  fileUrl      String?    @db.Text
-  content      String?    @db.Text
-  grade        Float?
-  feedback     String?    @db.Text
   submittedAt  DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([assignmentId, studentId])
 }
 
-model Announcement {
-  id        String   @id @default(uuid())
-  title     String
-  content   String   @db.Text
-  createdAt DateTime @default(now())
-
-  classSubjectId String?
-  classSubject   ClassSubject? @relation(fields: [classSubjectId], references: [id])
+model Resource {
+  id             String       @id @default(uuid())
+  title          String
+  type           String
+  description    String?
+  fileUrl        String
+  downloads      Int          @default(0)
+  classSubjectId String
+  classSubject   ClassSubject @relation(fields: [classSubjectId], references: [id])
   teacherId      String
-  teacher        User          @relation(fields: [teacherId], references: [id])
+  teacher        User         @relation(fields: [teacherId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  type      String   @default("INFO")
+  isRead    Boolean  @default(false)
+  link      String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
 }

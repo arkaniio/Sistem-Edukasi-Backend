@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards, Query } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -27,10 +27,27 @@ export class DashboardController {
   }
 
   @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  @Get('admin')
+  async getAdminStats() {
+    return await this.dashboardService.getAdminStats();
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles('TEACHER')
+  @Get('teacher')
+  async getTeacherStats(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('timeframe') timeframe?: string,
+  ) {
+    return await this.dashboardService.getTeacherStats(user.userId, timeframe);
+  }
+
+  @UseGuards(RolesGuard)
   @Roles('STUDENT')
-  @Get('student-summary')
-  async getStudentSummary(@CurrentUser() user: AuthenticatedUser) {
-    return await this.dashboardService.getStudentSummary(user.userId);
+  @Get('student')
+  async getStudentStats(@CurrentUser() user: AuthenticatedUser) {
+    return await this.dashboardService.getStudentStats(user.userId);
   }
 
   @Get('export')

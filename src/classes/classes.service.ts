@@ -9,13 +9,36 @@ export class ClassesService {
 
   async findAll() {
     return await this.prisma.class.findMany({
-      include: { _count: { select: { students: true } } },
+      include: { _count: { select: { students: true, subjects: true } } },
       orderBy: { name: 'asc' },
     });
   }
 
+  async findById(id: string) {
+    const classData = await this.prisma.class.findUnique({
+      where: { id },
+      include: {
+        students: {
+          include: { user: { select: { id: true, email: true } } },
+        },
+        subjects: {
+          include: {
+            subject: true,
+            teacher: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
+        _count: { select: { students: true, subjects: true } },
+      },
+    });
+
+    if (!classData) throw new Error('Class not found');
+    return classData;
+  }
+
   async create(data: CreateClassDto) {
-    return await this.prisma.class.create({ data });
+    return await this.prisma.class.create({
+      data,
+    });
   }
 
   async update(id: string, data: UpdateClassDto) {
@@ -24,5 +47,42 @@ export class ClassesService {
 
   async remove(id: string) {
     return await this.prisma.class.delete({ where: { id } });
+  }
+
+  async addSubject(
+    classId: string,
+    dto: { subjectId: string; teacherId: string },
+  ) {
+    return await this.prisma.classSubject.create({
+      data: {
+        classId,
+        subjectId: dto.subjectId,
+        teacherId: dto.teacherId,
+      },
+      include: {
+        subject: true,
+        teacher: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+  }
+
+  async removeSubject(classId: string, classSubjectId: string) {
+    return await this.prisma.classSubject.delete({
+      where: { id: classSubjectId, classId },
+    });
+  }
+
+  async addStudent(classId: string, studentId: string) {
+    return await this.prisma.student.update({
+      where: { id: studentId },
+      data: { classId },
+    });
+  }
+
+  async removeStudent(classId: string, studentId: string) {
+    return await this.prisma.student.update({
+      where: { id: studentId, classId },
+      data: { classId: null },
+    });
   }
 }

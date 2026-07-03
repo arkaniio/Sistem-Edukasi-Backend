@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { StudentsService } from './students.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -23,8 +24,8 @@ export class StudentsController {
   @UseGuards(RolesGuard)
   @Roles('TEACHER')
   @Get()
-  findAll() {
-    return this.studentsService.findAll();
+  findAll(@Query('classId') classId?: string) {
+    return this.studentsService.findAll({ classId });
   }
 
   @UseGuards(RolesGuard)

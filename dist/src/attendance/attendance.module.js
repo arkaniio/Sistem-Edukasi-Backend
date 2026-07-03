@@ -16,7 +16,7 @@ exports.AttendanceModule = AttendanceModule;
 exports.AttendanceModule = AttendanceModule = __decorate([
     (0, common_1.Module)({
         controllers: [attendance_controller_1.AttendanceController],
-        providers: [attendance_service_1.AttendanceService]
+        providers: [attendance_service_1.AttendanceService],
     })
 ], AttendanceModule);
 //# sourceMappingURL=attendance.module.js.map

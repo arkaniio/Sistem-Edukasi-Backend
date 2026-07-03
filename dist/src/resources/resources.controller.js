@@ -16,58 +16,55 @@ exports.ResourcesController = void 0;
 const common_1 = require("@nestjs/common");
 const resources_service_1 = require("./resources.service");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const current_user_decorator_1 = require("../auth/decorators/current-user.decorator");
+const create_resource_dto_1 = require("./dto/create-resource.dto");
 const platform_express_1 = require("@nestjs/platform-express");
-const multer_1 = require("multer");
-const path_1 = require("path");
+const role_guard_1 = require("../auth/guards/role-guard");
+const role_user_decorator_1 = require("../auth/decorators/role-user.decorator");
 let ResourcesController = class ResourcesController {
     resourcesService;
     constructor(resourcesService) {
         this.resourcesService = resourcesService;
     }
-    async getResources(req) {
-        return this.resourcesService.getResources(req.user.userId);
+    getResources(user) {
+        return this.resourcesService.getResources(user.userId);
     }
-    async getResourcesForStudent(req) {
-        return this.resourcesService.getResourcesForStudent(req.user.userId);
+    createResource(file, body, user) {
+        return this.resourcesService.createResource(user.userId, body, file);
     }
-    async createResource(file, body, req) {
-        const fileUrl = `/uploads/resources/${file.filename}`;
-        return this.resourcesService.createResource(req.user.userId, body, fileUrl);
+    async deleteResource(id) {
+        return this.resourcesService.deleteResource(id);
     }
 };
 exports.ResourcesController = ResourcesController;
 __decorate([
     (0, common_1.Get)(),
-    __param(0, (0, common_1.Request)()),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
+    __metadata("design:returntype", void 0)
 ], ResourcesController.prototype, "getResources", null);
 __decorate([
-    (0, common_1.Get)('student'),
-    __param(0, (0, common_1.Request)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
-], ResourcesController.prototype, "getResourcesForStudent", null);
-__decorate([
+    (0, common_1.UseGuards)(role_guard_1.RolesGuard),
+    (0, role_user_decorator_1.Roles)('TEACHER'),
     (0, common_1.Post)(),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
-        storage: (0, multer_1.diskStorage)({
-            destination: './public/uploads/resources',
-            filename: (req, file, cb) => {
-                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-                cb(null, `${file.fieldname}-${uniqueSuffix}${(0, path_1.extname)(file.originalname)}`);
-            },
-        }),
-    })),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),
     __param(0, (0, common_1.UploadedFile)()),
     __param(1, (0, common_1.Body)()),
-    __param(2, (0, common_1.Request)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object, Object]),
-    __metadata("design:returntype", Promise)
+    __metadata("design:paramtypes", [Object, create_resource_dto_1.CreateResourceDto, Object]),
+    __metadata("design:returntype", void 0)
 ], ResourcesController.prototype, "createResource", null);
+__decorate([
+    (0, common_1.UseGuards)(role_guard_1.RolesGuard),
+    (0, role_user_decorator_1.Roles)('TEACHER'),
+    (0, common_1.Delete)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], ResourcesController.prototype, "deleteResource", null);
 exports.ResourcesController = ResourcesController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)('resources'),

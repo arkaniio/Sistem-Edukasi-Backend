@@ -13,9 +13,9 @@ export class CreateResourceDto {
   @IsString()
   description?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  accessLevel!: string;
+  accessLevel?: string;
 
   @IsString()
   @IsNotEmpty()

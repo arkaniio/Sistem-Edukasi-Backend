@@ -18,7 +18,7 @@ exports.TestsModule = TestsModule = __decorate([
     (0, common_1.Module)({
         imports: [prisma_module_1.PrismaModule],
         providers: [tests_service_1.TestsService],
-        controllers: [tests_controller_1.TestsController]
+        controllers: [tests_controller_1.TestsController],
     })
 ], TestsModule);
 //# sourceMappingURL=tests.module.js.map

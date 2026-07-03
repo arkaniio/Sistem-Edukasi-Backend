@@ -17,17 +17,24 @@ let StudentsService = class StudentsService {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    findAll() {
-        return this.prisma.student.findMany({ include: { class: true }, orderBy: { firstName: 'asc' } });
+    async findAll(params) {
+        const where = {};
+        if (params?.classId)
+            where.classId = params.classId;
+        return await this.prisma.student.findMany({
+            where,
+            include: { class: true },
+            orderBy: { firstName: 'asc' },
+        });
     }
-    create(data) {
-        return this.prisma.student.create({ data });
+    async create(data) {
+        return await this.prisma.student.create({ data });
     }
-    update(id, data) {
-        return this.prisma.student.update({ where: { id }, data });
+    async update(id, data) {
+        return await this.prisma.student.update({ where: { id }, data });
     }
-    remove(id) {
-        return this.prisma.student.delete({ where: { id } });
+    async remove(id) {
+        return await this.prisma.student.delete({ where: { id } });
     }
 };
 exports.StudentsService = StudentsService;

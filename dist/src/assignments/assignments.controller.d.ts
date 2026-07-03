@@ -1,14 +1,192 @@
 import { AssignmentsService } from './assignments.service';
-import { PrismaService } from '../prisma/prisma.service';
+import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { CreateAssignmentDto } from './dto/create-assignment.dto';
+import { UpdateAssignmentDto } from './dto/update-assignment.dto';
+import { SubmitAssignmentDto } from './dto/submit-assignment.dto';
+import { GradeSubmissionDto } from './dto/grade-submission.dto';
 export declare class AssignmentsController {
     private readonly assignmentsService;
-    private prisma;
-    constructor(assignmentsService: AssignmentsService, prisma: PrismaService);
-    findAll(req: any): any;
-    fetchSubmissions(id: string): Promise<any>;
-    submitAssignment(id: string, data: any, req: any): Promise<any>;
-    gradeSubmission(submissionId: string, data: any): Promise<any>;
-    create(data: any, req: any): Promise<any>;
-    update(id: string, data: any): any;
-    remove(id: string): any;
+    constructor(assignmentsService: AssignmentsService);
+    findAll(user: AuthenticatedUser): Promise<{
+        mySubmission: {
+            id: string;
+            updatedAt: Date;
+            studentId: string;
+            fileUrl: string | null;
+            grade: number | null;
+            content: string | null;
+            feedback: string | null;
+            assignmentId: string;
+            submittedAt: Date;
+        };
+        submissions: {
+            id: string;
+            updatedAt: Date;
+            studentId: string;
+            fileUrl: string | null;
+            grade: number | null;
+            content: string | null;
+            feedback: string | null;
+            assignmentId: string;
+            submittedAt: Date;
+        }[];
+        classSubject: {
+            subject: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                name: string;
+                code: string | null;
+                description: string | null;
+            };
+            teacher: {
+                id: string;
+                email: string;
+                password: string;
+                firstName: string;
+                lastName: string;
+                role: import("@prisma/client").$Enums.UserRole;
+                avatar: string | null;
+                phone: string | null;
+                isActive: boolean;
+                createdAt: Date;
+                updatedAt: Date;
+            };
+        } & {
+            id: string;
+            createdAt: Date;
+            classId: string;
+            subjectId: string;
+            teacherId: string;
+        };
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        description: string | null;
+        title: string;
+        classSubjectId: string;
+        teacherId: string;
+        dueDate: Date;
+    }[] | ({
+        classSubject: {
+            class: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                name: string;
+                level: string | null;
+            };
+            subject: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                name: string;
+                code: string | null;
+                description: string | null;
+            };
+        } & {
+            id: string;
+            createdAt: Date;
+            classId: string;
+            subjectId: string;
+            teacherId: string;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        description: string | null;
+        title: string;
+        classSubjectId: string;
+        teacherId: string;
+        dueDate: Date;
+    })[]>;
+    fetchSubmissions(id: string): Promise<({
+        student: {
+            user: {
+                id: string;
+                email: string;
+                password: string;
+                firstName: string;
+                lastName: string;
+                role: import("@prisma/client").$Enums.UserRole;
+                avatar: string | null;
+                phone: string | null;
+                isActive: boolean;
+                createdAt: Date;
+                updatedAt: Date;
+            } | null;
+        } & {
+            id: string;
+            firstName: string;
+            lastName: string;
+            createdAt: Date;
+            updatedAt: Date;
+            nisn: string | null;
+            classId: string | null;
+            userId: string | null;
+        };
+    } & {
+        id: string;
+        updatedAt: Date;
+        studentId: string;
+        fileUrl: string | null;
+        grade: number | null;
+        content: string | null;
+        feedback: string | null;
+        assignmentId: string;
+        submittedAt: Date;
+    })[]>;
+    submitAssignment(id: string, data: SubmitAssignmentDto, user: AuthenticatedUser): Promise<{
+        id: string;
+        updatedAt: Date;
+        studentId: string;
+        fileUrl: string | null;
+        grade: number | null;
+        content: string | null;
+        feedback: string | null;
+        assignmentId: string;
+        submittedAt: Date;
+    }>;
+    gradeSubmission(submissionId: string, data: GradeSubmissionDto): Promise<{
+        id: string;
+        updatedAt: Date;
+        studentId: string;
+        fileUrl: string | null;
+        grade: number | null;
+        content: string | null;
+        feedback: string | null;
+        assignmentId: string;
+        submittedAt: Date;
+    }>;
+    create(data: CreateAssignmentDto, user: AuthenticatedUser): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        description: string | null;
+        title: string;
+        classSubjectId: string;
+        teacherId: string;
+        dueDate: Date;
+    }>;
+    update(id: string, data: UpdateAssignmentDto): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        description: string | null;
+        title: string;
+        classSubjectId: string;
+        teacherId: string;
+        dueDate: Date;
+    }>;
+    remove(id: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        description: string | null;
+        title: string;
+        classSubjectId: string;
+        teacherId: string;
+        dueDate: Date;
+    }>;
 }

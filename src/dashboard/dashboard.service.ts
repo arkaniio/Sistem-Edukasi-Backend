@@ -28,7 +28,200 @@ export class DashboardService {
     return [];
   }
 
-  async getStudentSummary(userId: string) {
+  async getAdminStats() {
+    const [
+      totalUsers,
+      totalStudents,
+      totalTeachers,
+      totalQuizzes,
+      totalClasses,
+      totalSubjects,
+      recentUsers,
+    ] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.user.count({ where: { role: 'STUDENT' } }),
+      this.prisma.user.count({ where: { role: 'TEACHER' } }),
+      this.prisma.quiz.count(),
+      this.prisma.class.count(),
+      this.prisma.subject.count(),
+      this.prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          role: true,
+          avatar: true,
+          isActive: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    return {
+      totalUsers,
+      totalStudents,
+      totalTeachers,
+      totalQuizzes,
+      totalClasses,
+      totalSubjects,
+      recentUsers,
+    };
+  }
+
+  async getTeacherStats(teacherUserId: string, timeframe: string = 'week') {
+    // Find all class-subjects this teacher is assigned to
+    const teacherClassSubjects = await this.prisma.classSubject.findMany({
+      where: { teacherId: teacherUserId },
+      include: { class: { include: { students: true } }, subject: true },
+    });
+
+    // Unique class IDs for this teacher
+    const classIds = [
+      ...new Set(teacherClassSubjects.map((cs) => cs.classId)),
+    ];
+
+    // Unique subject IDs
+    const subjectIds = [
+      ...new Set(teacherClassSubjects.map((cs) => cs.subjectId)),
+    ];
+
+    // All students across teacher's classes
+    const allStudentIds = [
+      ...new Set(
+        teacherClassSubjects.flatMap((cs) => cs.class.students.map((s) => s.id)),
+      ),
+    ];
+
+    const [totalClasses, totalSubjects, totalStudents, totalQuizzes, totalAssignments, recentQuizzes] =
+      await Promise.all([
+        classIds.length > 0
+          ? this.prisma.class.count({ where: { id: { in: classIds } } })
+          : Promise.resolve(0),
+        subjectIds.length > 0
+          ? this.prisma.subject.count({ where: { id: { in: subjectIds } } })
+          : Promise.resolve(0),
+        Promise.resolve(allStudentIds.length),
+        this.prisma.quiz.count({ where: { createdById: teacherUserId } }),
+        this.prisma.assignment.count(),
+        this.prisma.quiz.findMany({
+          where: { createdById: teacherUserId },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+          include: {
+            subject: true,
+            _count: { select: { quizAttempts: true, quizQuestions: true } },
+          },
+        }),
+      ]);
+
+    // Recent students in teacher's classes
+    const recentPerformance = await this.prisma.student.findMany({
+      where: classIds.length > 0 ? { classId: { in: classIds } } : { id: 'none' },
+      take: 5,
+      include: {
+        class: true,
+        quizAttempts: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+          include: { quizResult: true },
+        },
+      },
+    });
+
+    // Date ranges
+    const now = new Date();
+    const daysCount = timeframe === 'month' ? 30 : 7;
+    const currentPeriodStart = new Date(now);
+    currentPeriodStart.setUTCDate(now.getUTCDate() - daysCount);
+    currentPeriodStart.setUTCHours(0, 0, 0, 0);
+
+    const previousPeriodStart = new Date(currentPeriodStart);
+    previousPeriodStart.setUTCDate(currentPeriodStart.getUTCDate() - daysCount);
+
+    const attendanceWhere = classIds.length > 0 ? { classId: { in: classIds } } : {};
+
+    const currentAttendances = await this.prisma.attendance.findMany({
+      where: { ...attendanceWhere, date: { gte: currentPeriodStart, lte: now } },
+    });
+
+    const previousAttendances = await this.prisma.attendance.findMany({
+      where: { ...attendanceWhere, date: { gte: previousPeriodStart, lt: currentPeriodStart } },
+    });
+
+    const calculateAvg = (atts: any[]) => {
+      if (atts.length === 0) return 0;
+      const presentCount = atts.filter((a) => a.status === 'PRESENT').length;
+      return Math.round((presentCount / atts.length) * 100);
+    };
+
+    const currentAvg = calculateAvg(currentAttendances);
+    const previousAvg = calculateAvg(previousAttendances);
+    const attendanceChange = currentAvg - previousAvg;
+
+    // Build participation trends (UTC-safe)
+    const trends = [];
+    for (let i = daysCount - 1; i >= 0; i--) {
+      const startOfDay = new Date(now);
+      startOfDay.setUTCDate(now.getUTCDate() - i);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+
+      const dayAtts = currentAttendances.filter(
+        (a) => a.date >= startOfDay && a.date <= endOfDay,
+      );
+
+      trends.push({
+        day:
+          timeframe === 'month'
+            ? startOfDay.getUTCDate().toString()
+            : startOfDay.toLocaleDateString('en-US', { weekday: 'short' }),
+        peak: dayAtts.length,
+        average: dayAtts.filter((a) => a.status === 'PRESENT').length,
+      });
+    }
+
+    // Calculate real attendance rate per student
+    const studentAttendanceMap = new Map<string, number>();
+    for (const student of recentPerformance) {
+      const studentAtts = await this.prisma.attendance.findMany({
+        where: { studentId: student.id },
+      });
+      const presentCount = studentAtts.filter((a) => a.status === 'PRESENT').length;
+      const rate =
+        studentAtts.length > 0
+          ? Math.round((presentCount / studentAtts.length) * 100)
+          : 0;
+      studentAttendanceMap.set(student.id, rate);
+    }
+
+    return {
+      totalClasses,
+      totalSubjects,
+      totalStudents,
+      totalQuizzes,
+      totalAssignments,
+      recentQuizzes,
+      avgAttendance: currentAvg,
+      attendanceChange: attendanceChange,
+      studentChange: 0,
+      activeClasses: totalClasses,
+      participationTrends: trends,
+      recentPerformance: recentPerformance.map((s: any) => ({
+        id: s.id,
+        firstName: s.firstName,
+        lastName: s.lastName,
+        className: s.class?.name || 'Unassigned',
+        avgScore: s.quizAttempts[0]?.quizResult?.percentage || 0,
+        attendance: studentAttendanceMap.get(s.id) || 0,
+      })),
+    };
+  }
+
+  async getStudentStats(userId: string) {
     const student = await this.prisma.student.findUnique({
       where: { userId },
       include: { class: true },
@@ -40,6 +233,12 @@ export class DashboardService {
         attendanceRate: 0,
         pendingAssignments: 0,
         completedAssignments: 0,
+        totalAttempts: 0,
+        completedAttempts: 0,
+        averageScore: 0,
+        passedCount: 0,
+        recentResults: [],
+        attendanceStats: [],
       };
     }
 
@@ -53,6 +252,21 @@ export class DashboardService {
       totalAttendances === 0
         ? 0
         : Math.round((presentCount / totalAttendances) * 100);
+
+    if (!student.classId) {
+      return {
+        className: student.class?.name || 'Unassigned',
+        attendanceRate,
+        pendingAssignments: 0,
+        completedAssignments: 0,
+        totalAttempts: 0,
+        completedAttempts: 0,
+        averageScore: 0,
+        passedCount: 0,
+        recentResults: [],
+        attendanceStats: [],
+      };
+    }
 
     const classSubjects = await this.prisma.classSubject.findMany({
       where: { classId: student.classId },
@@ -72,11 +286,60 @@ export class DashboardService {
       allAssignments - completedAssignments,
     );
 
+    const attempts = await this.prisma.quizAttempt.findMany({
+      where: { userId },
+      include: { quiz: true },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+
+    const passedCount = await this.prisma.quizAttempt.count({
+      where: { userId, isPassed: true },
+    });
+
+    const completedAttemptsCount = await this.prisma.quizAttempt.count({
+      where: { userId, status: 'COMPLETED' },
+    });
+
+    const totalAttempts = await this.prisma.quizAttempt.count({
+      where: { userId },
+    });
+
+    const allCompleted = await this.prisma.quizAttempt.findMany({
+      where: { userId, status: 'COMPLETED' },
+      select: { percentage: true },
+    });
+
+    const averageScore =
+      allCompleted.length > 0
+        ? Math.round(
+            allCompleted.reduce((sum, a) => sum + (a.percentage || 0), 0) /
+              allCompleted.length,
+          )
+        : 0;
+
+    const attendances = await this.prisma.attendance.groupBy({
+      by: ['status'],
+      where: { studentId: student.id },
+      _count: true,
+    });
+
+    const attendanceStats = attendances.map((a) => ({
+      status: a.status,
+      _count: a._count,
+    }));
+
     return {
-      className: student.class.name,
+      className: student.class?.name || 'Unassigned',
       attendanceRate,
       pendingAssignments,
       completedAssignments,
+      totalAttempts,
+      completedAttempts: completedAttemptsCount,
+      averageScore,
+      passedCount,
+      recentResults: attempts,
+      attendanceStats,
     };
   }
 

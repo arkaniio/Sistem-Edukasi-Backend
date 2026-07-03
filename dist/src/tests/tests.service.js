@@ -21,11 +21,11 @@ let TestsService = class TestsService {
         return this.prisma.cBTTest.findMany({
             where: { teacherId },
             include: { classSubject: { include: { class: true, subject: true } } },
-            orderBy: { scheduledDate: 'desc' }
+            orderBy: { scheduledDate: 'desc' },
         });
     }
     async createTest(teacherId, data) {
-        const { title, durationMins, instructions, scheduledDate, classSubjectId, questions } = data;
+        const { title, durationMins, instructions, scheduledDate, classSubjectId, questions, } = data;
         return this.prisma.cBTTest.create({
             data: {
                 title,
@@ -36,13 +36,15 @@ let TestsService = class TestsService {
                 teacherId,
                 classSubjectId,
                 questions: {
-                    create: questions ? questions.map((q) => ({
-                        question: q.text,
-                        points: Number(q.points) || 1,
-                        options: q.options || []
-                    })) : []
-                }
-            }
+                    create: questions
+                        ? questions.map((q) => ({
+                            question: q.text,
+                            points: Number(q.points) || 1,
+                            options: q.options || [],
+                        }))
+                        : [],
+                },
+            },
         });
     }
 };
